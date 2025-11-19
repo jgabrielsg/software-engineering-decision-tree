@@ -79,7 +79,7 @@ class SplittingState(TreeState):
         4. Chama o builder recursivamente para os filhos;
         5. Retorna um DecisionNode.
         """
-        feature, threshold = self._find_best_split(builder, X, y)
+        feature, threshold = self._find_best_split(builder, X, y, depth)
         
         # Se não foi possível dividir, retorna uma folha
         if feature is None:
@@ -91,13 +91,22 @@ class SplittingState(TreeState):
         left_node = builder.fit(X_left, y_left, depth + 1)
         right_node = builder.fit(X_right, y_right, depth + 1)
         
+        print(left_node, right_node)
+        
         return DecisionNode(left_node, right_node)
 
-    def _find_best_split(self, builder, X, y):
-        ...
+    # RANDOM POR ENQUANTO
+    # TODO
+    def _find_best_split(self, builder, X, y, depth):
+        if np.random.random() > 0.1:
+            return 0, np.random.random()
+        return None, 0
         
+    # RANDOM POR ENQUANTO
+    # TODO
     def _do_split(self, X, y, feature, threshold):
-        ...
+        mid = len(y) // 2 
+        return X[:mid], y[:mid], X[mid:], y[mid:]
 
 class StoppingState(TreeState):
     """
@@ -117,11 +126,18 @@ class StoppingState(TreeState):
         builder.change_state(SplittingState())
         return builder.processing_state(X, y, depth)
 
+    # RANDOM POR ENQUANTO
+    # TODO
     def _should_stop(self, builder, X, y, depth) -> bool:
-        ...
+        rand = np.random.random()
+        if rand > 0.8:
+            return True
+        return False
     
+    # RANDOM POR ENQUANTO
+    # TODO
     def _calculate_leaf_value(self, y) -> float:
-        ...
+        return np.random.random()
 # ===================================
 # Classe para poda separada (não cabia bem no TreeState)
 class TreePruner:
@@ -163,8 +179,10 @@ class TreePruner:
     
             return node
 
+    # RANDOM POR ENQUANTO
+    # TODO
     def _calculate_error(self, node, X, y):
-        pass
+        return np.random.random()
 # ===================================
 
 # ===================================
@@ -179,11 +197,11 @@ class TreeBuilder:
         self._node: Node = None
 
     def change_state(self, state: TreeState):
-        print(f"Transição de estados: {type(self._state).__name__} -> {type(state).__name__}")
+        #print(f"Transição de estados: {type(self._state).__name__} -> {type(state).__name__}")
         self._state = state
 
     def processing_state(self, X, y, depth: int) -> Node:
-        print(f"Processando estado: {type(self._state).__name__}")
+        #print(f"Processando estado: {type(self._state).__name__}")
         return self._state.process(self, X, y, depth)
 
     def fit(self, X, y, depth: int = 0) -> Node:
@@ -229,4 +247,62 @@ class CountLeavesVisitor(NodeVisitor):
         left_leaves = node.left.accept(self)
         right_leaves = node.right.accept(self)
         return left_leaves + right_leaves
+# ====================================
+
+# ====================================
+# Classe do Iterator
+class Iterator(ABC):
+    @abstractmethod
+    def __iter__(self):
+        return self
+    
+    @abstractmethod
+    def __next__(self):
+        raise StopIteration
+
+class InOrderIterator(Iterator):
+    def __init__(self, root: Node):
+        self.traversal = self._traverse(root)
+
+    def __iter__(self):
+        return self
+    
+    def __next__(self):
+        return next(self.traversal)
+
+    def _traverse(self, node: Node):
+        if node:
+            # Desce na esquerda
+            if isinstance(node, DecisionNode):
+                yield from self._traverse(node.left)
+            
+            # Retorna o nó
+            yield node
+            
+            # Desce na direita por último
+            if isinstance(node, DecisionNode):
+                yield from self._traverse(node.right)
+
+class PostOrderIterator(Iterator):
+    def __init__(self, root: Node):
+        self.traversal = self._traverse(root)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self.traversal)
+
+    def _traverse(self, node: Node):
+        if node:
+            # Desce na esquerda
+            if isinstance(node, DecisionNode):
+                yield from self._traverse(node.left)
+                
+            # Desce na direita
+            if isinstance(node, DecisionNode):
+                yield from self._traverse(node.right)
+                
+            # Retorna o nó por último
+            yield node
 # ====================================
