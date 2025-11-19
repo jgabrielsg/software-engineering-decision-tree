@@ -5,7 +5,7 @@ import numpy as np
 # =================================
 # Classes para o Composite
 class Node:
-    def execute(self) -> None:
+    def execute(self, X) -> None:
         raise NotImplementedError()
 
 class LeafNode(Node):
@@ -13,26 +13,32 @@ class LeafNode(Node):
         # Valor salvo da folha
         self.value = value
     
-    def execute(self):
+    def execute(self, X):
         return self.value
 
 class DecisionNode(Node):
-    def __init__(self, left_node: Node, right_node: Node):
+    def __init__(self, feature_index: int, threshold: float, left_node: Node, right_node: Node):
+        self.feature_index = feature_index
+        self.threshold = threshold
         self.left = left_node
         self.right = right_node
     
-    def execute(self):
-        # Retorna a média dos valores dos nós
-        left_result = self.left.execute()
-        right_result = self.right.execute()
-        return (left_result + right_result) / 2
+    def execute(self, X):
+        # Pega o valor do X na feature que foi feito o split
+        feature_value = X[self.feature_index]
+
+        # Passa pra direita ou esquerda dependendo do threshold
+        if feature_value <= self.threshold:
+            return self.left.execute(X)
+        else:
+            return self.right.execute(X)
 # ===================================
 
 # ===================================
-# Classes para o State da árvore (crescendo, parada ou podando)
+# Classes para o State da árvore (crescendo, parada)
 class TreeState:
     @abstractmethod
-    def process(self, builder: 'TreeBuilder', X: np.ndarray, y: np.ndarray, depth: int) -> Node:
+    def process(self, builder: 'TreeBuilder', X, y, depth: int) -> Node:
         """
         Método abstrato que vai receber o X e y de treino e retornar
         ou um nó folha ou um nó de decisão
@@ -54,7 +60,7 @@ class SplittingState(TreeState):
     melhor split possível para os dados e chamando recursivamente para 
     ambos os lados 
     """
-    def process(self, builder: 'TreeBuilder', X: np.ndarray, y: np.ndarray, depth: int) -> Node:
+    def process(self, builder: 'TreeBuilder', X, y, depth: int) -> Node:
         """
         1. Se não houver bom split, retorna uma folha
         2. Se tiver, acha o melhor split;
@@ -87,7 +93,7 @@ class StoppingState(TreeState):
     É utilizado após o modelo fazer um novo split, depois checando, para
     os dois lados, se atingimos certos critérios de parada.
     """
-    def process(self, builder: 'TreeBuilder', X: np.ndarray, y: np.ndarray, depth: int) -> Node:
+    def process(self, builder: 'TreeBuilder', X, y, depth: int) -> Node:
         """
         Verifica critérios de parada (max_depth, min_samples, pureza)
         - Se deve parar: Retorna LeafNode;
@@ -105,38 +111,88 @@ class StoppingState(TreeState):
     
     def _calculate_leaf_value(self, y) -> float:
         ...
-
-class PruningState(TreeState):
+# ===================================
+# Classe para poda separada (não cabia bem no TreeState)
+class TreePruner:
     """
     Irá fazer a poda da árvore depois que ela estiver pronta
-    # TODO
     """
-    def process(self, builder: 'TreeBuilder', X: np.ndarray, y: np.ndarray, depth: int) -> Node:
-        pass
+    def prune(self, node: Node, X_val, y_val) -> Node:
+        """
+        1. Se já for folha, retorna ela;
+        2. Se for nó de decisão, pega a feature e threshold da decisão;
+        3. Divide os dados para direita ou esquerda;
+        4. Chama o builder recursivamente para os filhos;
+        5. Se o erro for menor quando tiver podado, mantém a poda
+        """
+        # Se é folha, sem poda
+        if isinstance(node, LeafNode):
+            return node
 
-    def _prune(self, node: Node, X_val: np.ndarray, y_val: np.ndarray) -> Node:
+        if isinstance(node, DecisionNode):
+            # Mapeia os X e y de validação para direita ou esquerda dependendo
+            # da feature que fizemos o split e do threshold dela
+            mask = X_val[:, node.feature_index] <= node.threshold
+            X_val_left, y_val_left = X_val[mask], y_val[mask]
+            X_val_right, y_val_right = X_val[~mask], y_val[~mask]
+
+            # Poda os filhos primeiro 
+            node.left = self.prune(node.left, X_val_left, y_val_left)
+            node.right = self.prune(node.right, X_val_right, y_val_right)
+
+            # Erro mantendo a divisão
+            current_error = self._calculate_error(node, X_val, y_val)
+            
+            # Erro se virar folha (poda)
+            leaf_value = np.mean(y_val) if len(y_val) > 0 else 0
+            pruned_error = np.mean((y_val - leaf_value) ** 2) # MSE
+            
+            if pruned_error <= current_error:
+                return LeafNode(value=leaf_value)
+    
+            return node
+
+    def _calculate_error(self, node, X, y):
         pass
 # ===================================
 
 # ===================================
 # Classe do TreeBuilder
 class TreeBuilder:
-    def __init__(self, max_depth: int = 5, min_samples: int = 5):
+    def __init__(self, max_depth: int = 10, min_samples: int = 10):
         self.max_depth = max_depth
         self.min_samples = min_samples
         
         # Estado inicial como Stopping
         self._state: TreeState = StoppingState()
+        self._node: Node = None
 
     def change_state(self, state: TreeState):
         print(f"Transição de estados: {type(self._state).__name__} -> {type(state).__name__}")
         self._state = state
 
-    def processing_state(self, X: np.ndarray, y: np.ndarray, depth: int) -> Node:
+    def processing_state(self, X, y, depth: int) -> Node:
         print(f"Processando estado: {type(self._state).__name__}")
         return self._state.process(self, X, y, depth)
 
-    def fit(self, X: np.ndarray, y: np.ndarray, depth: int = 0) -> Node:
+    def fit(self, X, y, depth: int = 0) -> Node:
         self.change_state(StoppingState())
         return self.processing_state(X, y, depth)
+    
+    def prune(self, X_val, y_val):
+        pruner = TreePruner()
+        print(f"Fazendo Poda da Árvore: {type(pruner).__name__}")
+        self.root = pruner.prune(self.root, X_val, y_val)
+        return self.root
+# ====================================
+
+# ====================================
+# Class do Visitor
+class GetDepthVisitor:
+    def visit(self, _):
+        ...
+
+class CountLeavesVisitor:
+    def visit(self, _):
+        ...
 # ====================================
