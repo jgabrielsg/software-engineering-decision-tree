@@ -5,7 +5,12 @@ import numpy as np
 # =================================
 # Classes para o Composite
 class Node:
+    @abstractmethod
     def execute(self, X) -> None:
+        raise NotImplementedError()
+    
+    @abstractmethod
+    def accept(self, visitor: 'NodeVisitor'):
         raise NotImplementedError()
 
 class LeafNode(Node):
@@ -15,6 +20,9 @@ class LeafNode(Node):
     
     def execute(self, X):
         return self.value
+    
+    def accept(self, visitor: 'NodeVisitor'):
+        return visitor.visit_leaf(self)
 
 class DecisionNode(Node):
     def __init__(self, feature_index: int, threshold: float, left_node: Node, right_node: Node):
@@ -32,6 +40,9 @@ class DecisionNode(Node):
             return self.left.execute(X)
         else:
             return self.right.execute(X)
+    
+    def accept(self, visitor: 'NodeVisitor'):
+        return visitor.visit_decision(self)
 # ===================================
 
 # ===================================
@@ -188,11 +199,34 @@ class TreeBuilder:
 
 # ====================================
 # Class do Visitor
-class GetDepthVisitor:
-    def visit(self, _):
-        ...
+class NodeVisitor(ABC):
+    @abstractmethod
+    def visit_leaf(self, node: LeafNode) -> int: ...
+    
+    @abstractmethod
+    def visit_decision(self, node: DecisionNode) -> int: ...
 
-class CountLeavesVisitor:
-    def visit(self, _):
-        ...
+class GetDepthVisitor(NodeVisitor):
+    """
+    Visita a árvore para calcular a profundidade máxima.
+    """
+    def visit_leaf(self, node: LeafNode) -> int:
+        return 1 # folha tem profundidade 1
+
+    def visit_decision(self, node: DecisionNode) -> int:
+        left_depth = node.left.accept(self)
+        right_depth = node.right.accept(self)
+        return 1 + max(left_depth, right_depth)
+
+class CountLeavesVisitor(NodeVisitor):
+    """
+    Conta a quantidade de folhas na árvore
+    """
+    def visit_leaf(self, node: LeafNode) -> int:
+        return 1 # achamos 1 folha!
+
+    def visit_decision(self, node: DecisionNode) -> int:
+        left_leaves = node.left.accept(self)
+        right_leaves = node.right.accept(self)
+        return left_leaves + right_leaves
 # ====================================
