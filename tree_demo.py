@@ -1,63 +1,77 @@
-import numpy as np
 from tree_design import (
     TreeBuilder, TreePruner, Node,
     GetDepthVisitor, CountLeavesVisitor,
-    InOrderIterator,
-    LeafNode, DecisionNode  # Apenas para type checking ou testes manuais
+    InOrderIterator, PostOrderIterator,
+    LeafNode, DecisionNode
 )
+import random
 
 if __name__ == "__main__":
-    # Dados mock com random do numpy
-    np.random.seed(42)
-    X_mock = np.random.random((1000, 10))
-    y_mock = np.random.random(1000)
+    print("==========================================")
+    print("Iniciando o Teste")
+    print("==========================================\n")
+    random.seed(10)
+
+    X_mock = ["dado1", "dado2"]
+    y_mock = [1.0, 0.0]
     
-    print("--- CONSTRUINDO A ÁRVORE ---")
-    builder = TreeBuilder(max_depth=5, min_samples=2)
+    print("Chamando o construtor da árvore")
+    builder = TreeBuilder(max_depth=5)
+    
+    # Chamamos o fit, que alterna entre o estados e cria a árvore (Stopping -> Splitting -> Stopping...)
     root_node = builder.fit(X_mock, y_mock)
     
-    # -----------------------------------
-    
-    print("\n--- VISITORS ---")
-    depth_visitor = GetDepthVisitor()
-    max_depth = root_node.accept(depth_visitor)
-    print(f"Profundidade Máxima da Árvore: {max_depth}")
+    if root_node:
+        print("\n==========================================")
+        print("Visitors")
+        print("==========================================\n")
+        depth_visitor = GetDepthVisitor()
+        max_depth = root_node.accept(depth_visitor)
+        print(f"\n ------> [Visitor] Profundidade Máxima da Árvore: {max_depth}\n")
 
-    leaves_visitor = CountLeavesVisitor()
-    num_leaves = root_node.accept(leaves_visitor)
-    print(f"Número de folhas: {num_leaves}")
+        leaves_visitor = CountLeavesVisitor()
+        num_leaves = root_node.accept(leaves_visitor)
+        print(f"\n ------> [Visitor] Número de folhas: {num_leaves}\n")
 
-    # -----------------------------------
+        print("\n==========================================")
+        print("Iterators")
+        print("==========================================\n")
+        # Percorre Esquerda -> Nó -> Direita
+        iteratorI = InOrderIterator(root_node)
+        for i, node in enumerate(iteratorI):
+            prefix = f"   [{i}] "
+            
+            if isinstance(node, DecisionNode):
+                print(f"{prefix} DecisionNode | Feature {node.feature_index} <= {node.threshold:.2f}")
+            elif isinstance(node, LeafNode):
+                print(f"{prefix} LeafNode     | Valor Predito: {node.value:.2f}")
+        
+        print("\n==========================================")
+        print("==========================================\n")
+        
+        iteratorP = PostOrderIterator(root_node)
+        for i, node in enumerate(iteratorP):
+            prefix = f"   [{i}] "
+            
+            if isinstance(node, DecisionNode):
+                print(f"{prefix} DecisionNode | Feature {node.feature_index} <= {node.threshold:.2f}")
+            elif isinstance(node, LeafNode):
+                print(f"{prefix} LeafNode     | Valor Predito: {node.value:.2f}")
 
-    print("\n--- ITERADOR ---")
-    iterator = InOrderIterator(root_node)
-    
-    for node in iterator:
-        if isinstance(node, DecisionNode):
-            print(f"[Decision] Feature {node.feature_index} <= {node.threshold:.2f}")
-        elif isinstance(node, LeafNode):
-            print(f"  -> [Leaf] Valor: {node.value:.2f}")
-    
-    # -----------------------------------
-
-    print("\n--- PODADOR ---")
-    X_val = np.random.random((1000, 10))
-    y_val = np.random.random(1000)
-    
-    pruner = TreePruner()
-    root_node = pruner.prune(root_node, X_val, y_val)
-    
-    max_depth = root_node.accept(depth_visitor)
-    print(f"Profundidade Máxima da Árvore: {max_depth}")
-    num_leaves = root_node.accept(leaves_visitor)
-    print(f"Número de folhas: {num_leaves}")
-    
-    print("\n--- ITERADOR PÓS PODA---")
-    iterator = InOrderIterator(root_node)
-    
-    for node in iterator:
-        if isinstance(node, DecisionNode):
-            print(f"[Decision] Feature {node.feature_index} <= {node.threshold:.2f}")
-        elif isinstance(node, LeafNode):
-            print(f"  -> [Leaf] Valor: {node.value:.2f}")
-    # -----------------------------------
+        print("\n==========================================")
+        print("Poda")
+        print("==========================================\n")
+        X_val = ["val_1", "val_2"]
+        y_val = [1.0, 0.0]
+        
+        pruner = TreePruner()
+        root_node = pruner.prune(root_node, X_val, y_val)
+        
+        print("\n==========================================")
+        print("Pós Poda")
+        print("==========================================\n")
+        new_depth = root_node.accept(depth_visitor)
+        print(f"\n ------> [Visitor] Profundidade pós poda: {new_depth} (antigo: {max_depth})\n")
+        
+        new_leaves = root_node.accept(leaves_visitor)
+        print(f"\n ------> [Visitor] Número de folhas pós poda: {new_leaves} (antigo: {num_leaves})\n")
