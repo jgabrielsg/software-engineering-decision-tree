@@ -6,7 +6,7 @@ import numpy as np
 # Classes para o Composite
 class Node:
     @abstractmethod
-    def execute(self, X) -> None:
+    def execute(self, x) -> None:
         raise NotImplementedError()
     
     @abstractmethod
@@ -18,7 +18,7 @@ class LeafNode(Node):
         # Valor salvo da folha
         self.value = value
     
-    def execute(self, X):
+    def execute(self, x):
         return self.value
     
     def accept(self, visitor: 'NodeVisitor'):
@@ -31,15 +31,13 @@ class DecisionNode(Node):
         self.left = left_node
         self.right = right_node
     
-    def execute(self, X):
-        # Pega o valor do X na feature que foi feito o split
-        feature_value = X[self.feature_index]
-
-        # Passa pra direita ou esquerda dependendo do threshold
+    def execute(self, x):
+        # Pega X na feature que foi feito o split e desce para um dos filhos
+        feature_value = x[self.feature_index]
         if feature_value <= self.threshold:
-            return self.left.execute(X)
+            return self.left.execute(x)
         else:
-            return self.right.execute(X)
+            return self.right.execute(x)
     
     def accept(self, visitor: 'NodeVisitor'):
         return visitor.visit_decision(self)
@@ -69,7 +67,7 @@ class SplittingState(TreeState):
     """
     É utilizado toda vez que o modelo faz um novo split, encontrando o
     melhor split possível para os dados e chamando recursivamente para 
-    ambos os lados 
+    ambos os lados.
     """
     def process(self, builder: 'TreeBuilder', X, y, depth: int) -> Node:
         """
@@ -90,23 +88,32 @@ class SplittingState(TreeState):
         # Recursão para direita e esquerda
         left_node = builder.fit(X_left, y_left, depth + 1)
         right_node = builder.fit(X_right, y_right, depth + 1)
+        #print(left_node, right_node)
         
-        print(left_node, right_node)
-        
-        return DecisionNode(left_node, right_node)
+        return DecisionNode(feature, threshold, left_node, right_node)
 
-    # RANDOM POR ENQUANTO
-    # TODO
     def _find_best_split(self, builder, X, y, depth):
-        if np.random.random() > 0.1:
-            return 0, np.random.random()
-        return None, 0
+        # =======================================================
+        # Como é mock, deixei a chance de não achar aleatória
+        # =======================================================
+        if np.random.random() < 0.1:
+            return None, None
+
+        # =======================================================
+        # Como é mock, deixei a feature e threshold aleatórios
+        # =======================================================
+        feature_idx = np.random.randint(0, X.shape[1])
+        values_in_column = X[:, feature_idx]
+        threshold = np.random.choice(values_in_column)
         
-    # RANDOM POR ENQUANTO
-    # TODO
-    def _do_split(self, X, y, feature, threshold):
-        mid = len(y) // 2 
-        return X[:mid], y[:mid], X[mid:], y[mid:]
+        return feature_idx, threshold
+        
+    def _do_split(self, X, y, feature_idx, threshold):
+        # Usa a feature e threshold mock e divide em X_right e X_left
+        mask = X[:, feature_idx] <= threshold
+        X_left, y_left = X[mask], y[mask]
+        X_right, y_right = X[~mask], y[~mask]
+        return X_left, y_left, X_right, y_right
 
 class StoppingState(TreeState):
     """
@@ -126,18 +133,29 @@ class StoppingState(TreeState):
         builder.change_state(SplittingState())
         return builder.processing_state(X, y, depth)
 
-    # RANDOM POR ENQUANTO
-    # TODO
     def _should_stop(self, builder, X, y, depth) -> bool:
-        rand = np.random.random()
-        if rand > 0.8:
+        # lista vazia dá 0
+        if len(y) == 0:
             return True
+
+        # profundidade máxima
+        if depth >= builder.max_depth:
+            return True
+        
+        # tamanho minimo de split
+        if len(y) < builder.min_samples:
+            return True
+        
         return False
     
-    # RANDOM POR ENQUANTO
-    # TODO
     def _calculate_leaf_value(self, y) -> float:
-        return np.random.random()
+        # lista vazia dá 0
+        if len(y) == 0:
+            return 0.0
+        
+        return float(np.mean(y))
+# ===================================
+
 # ===================================
 # Classe para poda separada (não cabia bem no TreeState)
 class TreePruner:
@@ -179,10 +197,15 @@ class TreePruner:
     
             return node
 
-    # RANDOM POR ENQUANTO
-    # TODO
     def _calculate_error(self, node, X, y):
-        return np.random.random()
+        # lista vazia retorna 0
+        if len(y) == 0:
+            return 0.0
+        
+        predictions = np.array([node.execute(row) for row in X])
+        mse = np.mean((y - predictions) ** 2)
+
+        return mse
 # ===================================
 
 # ===================================
@@ -197,11 +220,11 @@ class TreeBuilder:
         self._node: Node = None
 
     def change_state(self, state: TreeState):
-        #print(f"Transição de estados: {type(self._state).__name__} -> {type(state).__name__}")
+        print(f"Transição de estados: {type(self._state).__name__} -> {type(state).__name__}")
         self._state = state
 
     def processing_state(self, X, y, depth: int) -> Node:
-        #print(f"Processando estado: {type(self._state).__name__}")
+        print(f"Processando estado: {type(self._state).__name__}")
         return self._state.process(self, X, y, depth)
 
     def fit(self, X, y, depth: int = 0) -> Node:
