@@ -7,6 +7,11 @@ Matéria: Engenharia de Software
 
 ---
 
+## Diagrama de Classes:
+
+![Minha imagem](https://github.com/jgabrielsg/software-engineering-decision-tree/blob/main/class_diagram.jpg)
+ 
+
 ## Introdução
 
 No projeto, foi-nos pedido criar uma modelagem para uma árvore de decisão usando certos padrões de projeto. Conforme as restrições, não há implementação de algoritmos matemáticos reais (como Gini Impurity ou Entropy) e todo o comportamento é simulado utilizando a biblioteca padrão `random` do Python e `prints` para demonstrar o fluxo de execução e a troca de mensagens entre os objetos.
