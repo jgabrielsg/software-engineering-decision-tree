@@ -252,6 +252,16 @@ class TreePruner:
 # ===================================
 # Classe do TreeBuilder
 class TreeBuilder:
+    """
+    Classe responsável pela construção da Árvore de Decisão. Ela gerencia
+    o estado atual da construção (se deve parar ou dividir) e delega a lógica 
+    para as classes de estado concretas (`StoppingState` ou `SplittingState`).
+
+    Atributos:
+        max_depth (int): A profundidade máxima que a árvore pode alcançar.
+        root (Node): Referência para o nó raiz da árvore após o treino.
+        _state (TreeState): O estado atual da construção no nível da recursão.
+    """
     def __init__(self, max_depth: int = 5):
         self.max_depth = max_depth
         
