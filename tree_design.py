@@ -5,20 +5,32 @@ import random
 # Classes para o Composite
 # =================================
 class Node(ABC):
+    """
+    Classe abstrata de nó, serve como base para o LeafNode
+    (nó folha) e DecisionNode (nó de decisão)
+    """
     @abstractmethod
     def execute(self, x) -> None:
-        raise NotImplementedError()
+        raise NotImplementedError("Não implementado em classe abstrata")
     
     @abstractmethod
     def accept(self, visitor: 'NodeVisitor'):
-        raise NotImplementedError()
+        raise NotImplementedError("Não implementado em classe abstrata")
 
 class LeafNode(Node):
+    """
+    Nó folha que salva o valor float no qual a árvore foi criada.
+    Como recebe um float, serve para regressão.
+    """
     def __init__(self, value: float):
         # Valor salvo da folha
         self.value = value
     
     def execute(self, x):
+        """
+        Retorna o valor da divisão do nó, servindo para receber um dado x
+        de teste e retornar qual sua previsão.
+        """
         print(f"  [LeafNode] Retornando valor fixo: {self.value}")
         return self.value
     
@@ -26,6 +38,10 @@ class LeafNode(Node):
         return visitor.visit_leaf(self)
 
 class DecisionNode(Node):
+    """
+    Nó de decisão, que salva a feature que houve o 'split' no espaço,
+    o threshold e os nós à direita e à esquerda.
+    """
     def __init__(self, feature_index: int, threshold: float, left_node: Node, right_node: Node):
         self.feature_index = feature_index
         self.threshold = threshold
@@ -33,6 +49,14 @@ class DecisionNode(Node):
         self.right = right_node
     
     def execute(self, x):
+        """
+        Ao contrário do execute do LeafNode, aqui o execute recebe o vetor
+        do dado e diz para qual lado ele deve ir (como é mock, ele está sempre
+        executando a subárvore da esquerda, até achar uma folha)
+
+        Args:
+            x (array): Vetor com todas as features de um dado
+        """
         # Apenas finge que verificou e só "desce" para a esquerda sempre
         print(f"  [DecisionNode] Verificando se feature {self.feature_index} <= {self.threshold}")
         print("  [DecisionNode] Decisão: indo para a Esquerda.") 
@@ -60,7 +84,7 @@ class TreeState(ABC):
         Returns:
             Node: Um nó folha ou de decisão, dependendo se tivermos Stopping
         """
-        raise NotImplementedError()
+        raise NotImplementedError("Não implementado em classe abstrata")
     
 class SplittingState(TreeState):
     """
@@ -153,7 +177,7 @@ class StoppingState(TreeState):
             print(" XXXXX [StoppingState] -> Profundidade máxima atingida.")
             return True
         
-        # 20% de chance de parar
+        # 20% de chance aleatória de parar
         if random.random() > 0.8 and depth >= 3:
             print(" XXXXX [StoppingState] -> Há piora!")
             return True
@@ -269,11 +293,19 @@ class TreeBuilder:
 # Class do Visitor
 # ====================================
 class NodeVisitor(ABC):
+    """
+    Classe abstrata que define um 'Visitor' para os dois tipos de nó
+    de uma árvore, o nó folha e o de decisão. Ambos devem utilizar
+    a função "accept" que os nós possuem para permitir acesso dos
+    'Visitors' à informação dele
+    """
     @abstractmethod
-    def visit_leaf(self, node: LeafNode) -> int: ...
+    def visit_leaf(self, node: LeafNode) -> int: 
+        raise NotImplementedError("Não implementado em classe abstrata")
     
     @abstractmethod
-    def visit_decision(self, node: DecisionNode) -> int: ...
+    def visit_decision(self, node: DecisionNode) -> int: 
+        raise NotImplementedError("Não implementado em classe abstrata")
 
 class GetDepthVisitor(NodeVisitor):
     """
@@ -312,15 +344,27 @@ class CountLeavesVisitor(NodeVisitor):
 # Classe do Iterator
 # ====================================
 class Iterator(ABC):
+    """
+    Classe abstrata que define um 'Iterator', que passa por toda a 
+    árvore e permite usar e printar os dados dentro dos nós
+    """
     @abstractmethod
     def __iter__(self):
-        return self
+        raise NotImplementedError("Não implementado em classe abstrata")
     
     @abstractmethod
     def __next__(self):
-        raise StopIteration
+        raise NotImplementedError("Não implementado em classe abstrata")
 
 class InOrderIterator(Iterator):
+    """
+    Iterador que percorre uma árvore binária de decisão em ordem (in-order).
+
+    A travessia segue o padrão:
+        1. Visita o filho da esquerda
+        2. Visita o nó atual
+        3. Visita o filho da direita
+    """
     def __init__(self, root: Node):
         self.traversal = self._traverse(root)
 
@@ -350,6 +394,14 @@ class InOrderIterator(Iterator):
                 yield from self._traverse(node.right)
 
 class PostOrderIterator(Iterator):
+    """
+    Iterador que percorre uma árvore binária de decisão em pós-ordem (post-order).
+
+    A travessia post-order segue o padrão:
+        1. Visita o filho da esquerda
+        2. Visita o filho da direita
+        3. Visita o nó atual
+    """
     def __init__(self, root: Node):
         self.traversal = self._traverse(root)
 
